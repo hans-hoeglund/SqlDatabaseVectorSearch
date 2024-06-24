@@ -64,7 +64,7 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
         await dbContext.SaveChangesAsync();
     }
 
-    public async Task<Response?> AskQuestionAsync(Question question, bool reformulate = true)
+    public async Task<VectorSearchResponse?> AskQuestionAsync(Question question, bool reformulate = true)
     {
         // Reformulate the following question taking into account the context of the chat to perform keyword search and embeddings:
         var reformulatedQuestion = reformulate ? await chatService.CreateQuestionAsync(question.ConversationId, question.Text) : question.Text;
@@ -77,15 +77,22 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
             .Take(appSettings.MaxRelevantChunks)
             .ToListAsync();
 
-        var answer = await chatService.AskQuestionAsync(question.ConversationId, chunks, reformulatedQuestion);
-        return new Response(reformulatedQuestion, answer);
+        var response = await chatService.AskQuestionAsync(question.ConversationId, chunks, reformulatedQuestion);
+
+        // Retrieve the content of the chunks that have been used to provide the answer.
+        var citations = await dbContext.DocumentChunks
+            .Where(c => response.Sources.Contains(c.Id))
+            .Select(c => new Citation(c.DocumentId, c.Id, c.Content))
+            .ToListAsync();
+
+        return new VectorSearchResponse(reformulatedQuestion, response.Answer, citations);
     }
 
     private static Task<string> GetContentAsync(Stream stream)
     {
         var content = new StringBuilder();
 
-        // Reads the content of the PDF document using PdfPig.
+        // Read the content of the PDF document.
         using var pdfDocument = PdfDocument.Open(stream);
 
         foreach (var page in pdfDocument.GetPages().Where(x => x is not null))
