@@ -13,6 +13,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         base.OnConfiguring(optionsBuilder);
+
         optionsBuilder.UseExceptionProcessor();
     }
 
@@ -35,7 +36,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasMaxLength(8000)
                 .IsVector();
 
-            entity.HasOne(d => d.Document).WithMany(p => p.DocumentChunks)
+            entity.HasOne(d => d.Document).WithMany(p => p.Chunks)
                 .HasForeignKey(d => d.DocumentId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_DocumentChunks_Documents");
