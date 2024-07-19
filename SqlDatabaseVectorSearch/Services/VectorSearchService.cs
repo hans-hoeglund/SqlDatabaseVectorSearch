@@ -94,21 +94,18 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
         }
     }
 
-    public async Task<Response> AskQuestionAsync(Question question, bool reformulate = true)
+    public async Task<Response> AskQuestionAsync(Question question)
     {
-        // Reformulate the following question taking into account the context of the chat to perform keyword search and embeddings:
-        var reformulatedQuestion = reformulate ? await chatService.CreateQuestionAsync(question.ConversationId, question.Text) : question.Text;
-
         // Perform Vector Search on SQL Server.
-        var questionEmbedding = await textEmbeddingGenerationService.GenerateEmbeddingAsync(reformulatedQuestion);
+        var questionEmbedding = await textEmbeddingGenerationService.GenerateEmbeddingAsync(question.Text);
 
         var chunks = await dbContext.DocumentChunks
             .OrderBy(c => EF.Functions.VectorDistance("cosine", c.Embedding, questionEmbedding.ToArray()))
             .Take(appSettings.MaxRelevantChunks)
             .ToListAsync();
 
-        var answer = await chatService.AskQuestionAsync(question.ConversationId, chunks, reformulatedQuestion);
-        return new Response(reformulatedQuestion, answer);
+        var answer = await chatService.AskQuestionAsync(chunks, question.Text);
+        return new Response(question.Text, answer);
     }
 
     private static Task<string> GetContentAsync(Stream stream)

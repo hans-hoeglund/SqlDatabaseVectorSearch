@@ -23,10 +23,7 @@ builder.Services.AddSqlServer<ApplicationDbContext>(builder.Configuration.GetCon
     options.UseVectorSearch();
 });
 
-builder.Services.AddMemoryCache();
-
-// Semantical Kernel is used to generate embeddings and to reformulate questions taking into account all the previous interactions,
-// so that embeddings themselves can be generated more accurately.
+// Semantical Kernel is used to generate embeddings and ask the actual question
 builder.Services.AddKernel()
     .AddAzureOpenAITextEmbeddingGeneration(aiSettings.Embedding.Deployment, aiSettings.Embedding.Endpoint, aiSettings.Embedding.ApiKey)
     .AddAzureOpenAIChatCompletion(aiSettings.ChatCompletion.Deployment, aiSettings.ChatCompletion.Endpoint, aiSettings.ChatCompletion.ApiKey);
@@ -118,7 +115,7 @@ documentsApiGroup.MapPost(string.Empty, async (IFormFile file, VectorSearchServi
 .WithOpenApi(operation =>
 {
     operation.Summary = "Uploads a document";
-    operation.Description = "Uploads a document to SQL Server and saves its embedding using Vector Support. The document will be indexed and used to answer questions. Currently, only PDF files are supported.";
+    operation.Description = "Uploads a document to SQL Database and saves its embedding using Vector Support. The document will be indexed and used to answer questions. Currently, only PDF files are supported.";
 
     operation.Parameter("documentId").Description = "The unique identifier of the document. If not provided, a new one will be generated. If you specify an existing documentId, the document will be overridden.";
 
@@ -133,22 +130,19 @@ documentsApiGroup.MapDelete("{documentId:guid}", async (Guid documentId, VectorS
 .WithOpenApi(operation =>
 {
     operation.Summary = "Deletes a document";
-    operation.Description = "This endpoint deletes the document and all its chunks from SQL Server.";
+    operation.Description = "This endpoint deletes the document and all its chunks.";
 
     return operation;
 });
 
-app.MapPost("/api/ask", async (Question question, VectorSearchService vectorSearchService, bool reformulate = true) =>
+app.MapPost("/api/ask", async (Question question, VectorSearchService vectorSearchService) =>
 {
-    var response = await vectorSearchService.AskQuestionAsync(question, reformulate);
+    var response = await vectorSearchService.AskQuestionAsync(question);
     return TypedResults.Ok(response);
 })
 .WithOpenApi(operation =>
 {
     operation.Summary = "Asks a question";
-    operation.Description = "The question will be reformulated taking into account the context of the chat identified by the given ConversationId.";
-
-    operation.Parameter("reformulate").Description = "If true, the question will be reformulated taking into account the context of the chat identified by the given ConversationId.";
 
     return operation;
 })
