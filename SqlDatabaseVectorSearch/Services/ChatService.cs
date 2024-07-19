@@ -1,12 +1,11 @@
 ﻿using System.Text;
 using Microsoft.SemanticKernel.ChatCompletion;
-using SqlDatabaseVectorSearch.DataAccessLayer.Entities;
 
 namespace SqlDatabaseVectorSearch.Services;
 
 public class ChatService(IChatCompletionService chatCompletionService)
 {
-    public async Task<string> AskQuestionAsync(IEnumerable<DocumentChunk> chunks, string question)
+    public async Task<string> AskQuestionAsync(IEnumerable<string> chunks, string question)
     {
         var chat = new ChatHistory(""""
             """
@@ -23,7 +22,7 @@ public class ChatService(IChatCompletionService chatCompletionService)
             """);
 
         // TODO: Ensure that the chunks are not too long, according to the model max token.
-        foreach (var result in chunks.Select(c => c.Content))
+        foreach (var result in chunks)
         {
             prompt.AppendLine(result);
             prompt.AppendLine("---");
