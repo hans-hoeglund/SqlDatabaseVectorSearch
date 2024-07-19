@@ -1,10 +1,12 @@
 ﻿namespace SqlDatabaseVectorSearch.DataAccessLayer.Entities;
 
-public partial class DocumentChunk
+public class DocumentChunk
 {
     public Guid Id { get; set; }
 
     public Guid DocumentId { get; set; }
+
+    public int Index { get; set; }
 
     public required string Content { get; set; }
 

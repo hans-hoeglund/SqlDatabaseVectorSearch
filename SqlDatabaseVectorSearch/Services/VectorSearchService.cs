@@ -58,6 +58,24 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
         return documents;
     }
 
+    public async Task<IEnumerable<DocumentChunk>> GetDocumentChunksAsync(Guid documentId)
+    {
+        var documentChunks = await dbContext.DocumentChunks.Where(c => c.DocumentId == documentId).OrderBy(c => c.Index).AsNoTracking()
+            .Select(c => new DocumentChunk(c.Id, c.Index, c.Content, null))
+            .ToListAsync();
+
+        return documentChunks;
+    }
+
+    public async Task<DocumentChunk?> GetDocumentChunkEmbeddingAsync(Guid documentId, Guid documentChunkId)
+    {
+        var documentChunk = await dbContext.DocumentChunks.Where(c => c.Id == documentChunkId && c.DocumentId == documentId).AsNoTracking()
+            .Select(c => new DocumentChunk(c.Id, c.Index, c.Content, c.Embedding))
+            .FirstOrDefaultAsync();
+
+        return documentChunk;
+    }
+
     public async Task DeleteDocumentAsync(Guid documentId, bool saveChanges = true)
     {
         var document = await dbContext.Documents.Include(d => d.Chunks).FirstOrDefaultAsync(d => d.Id == documentId);
@@ -85,6 +103,7 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
 
         var chunks = await dbContext.DocumentChunks
             .OrderBy(c => EF.Functions.VectorDistance("cosine", c.Embedding, questionEmbedding.ToArray()))
+            .Select(c => new DocumentChunk(c.Id, c.Index, c.Content, null))
             .Take(appSettings.MaxRelevantChunks)
             .ToListAsync();
 

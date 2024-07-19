@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Microsoft.SemanticKernel;
@@ -75,6 +76,35 @@ documentsApiGroup.MapGet(string.Empty, async (VectorSearchService vectorSearchSe
 {
     operation.Summary = "Gets the list of documents";
 
+    return operation;
+});
+
+documentsApiGroup.MapGet("{documentId:guid}/chunks", async (Guid documentId, VectorSearchService vectorSearchService) =>
+{
+    var documents = await vectorSearchService.GetDocumentChunksAsync(documentId);
+    return TypedResults.Ok(documents);
+})
+.WithOpenApi(operation =>
+{
+    operation.Summary = "Gets the list of chunks of a given document";
+    operation.Description = "The list does not contain embedding. Use '/api/documents/{documentId}/chunks/{documentChunkId}' to get the embedding for a given chunk.";
+
+    return operation;
+});
+
+documentsApiGroup.MapGet("{documentId:guid}/chunks/{documentChunkId:guid}", async Task<Results<Ok<DocumentChunk>, NotFound>> (Guid documentId, Guid documentChunkId, VectorSearchService vectorSearchService) =>
+{
+    var chunk = await vectorSearchService.GetDocumentChunkEmbeddingAsync(documentId, documentChunkId);
+    if (chunk is null)
+    {
+        return TypedResults.NotFound();
+    }
+
+    return TypedResults.Ok(chunk);
+})
+.WithOpenApi(operation =>
+{
+    operation.Summary = "Gets the details of a given chunk, includings its embedding";
     return operation;
 });
 
