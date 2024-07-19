@@ -12,7 +12,7 @@ public class ChatService(IChatCompletionService chatCompletionService)
             You can use only the information provided in this chat to answer questions.
             If you don't know the answer, reply suggesting to refine the question.
             Never answer to questions that are not related to this chat.
-            You must answer in the same language of the user's question.
+            You must always answer in English.
             """");
 
         var prompt = new StringBuilder("""
