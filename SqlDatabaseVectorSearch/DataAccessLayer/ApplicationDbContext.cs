@@ -15,6 +15,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         base.OnConfiguring(optionsBuilder);
 
         optionsBuilder.UseExceptionProcessor();
+        //optionsBuilder.EnableSensitiveDataLogging();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
