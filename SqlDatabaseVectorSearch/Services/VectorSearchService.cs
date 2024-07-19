@@ -21,10 +21,13 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
         // Extract the contents of the file (current, only PDF are supported).
         var content = await GetContentAsync(stream);
 
+        await dbContext.Database.BeginTransactionAsync();
+
         if (documentId.HasValue)
         {
             // If the user is importing a document that already exists, delete the previous one.
-            await DeleteDocumentAsync(documentId.Value, saveChanges: false);
+            await dbContext.DocumentChunks.Where(c => c.DocumentId == documentId).ExecuteDeleteAsync();
+            await dbContext.Documents.Where(d => d.Id == documentId).ExecuteDeleteAsync();
         }
         else
         {
@@ -46,6 +49,8 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
         }
 
         await dbContext.SaveChangesAsync();
+        await dbContext.Database.CommitTransactionAsync();
+
         return documentId.Value;
     }
 
@@ -76,21 +81,14 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
         return documentChunk;
     }
 
-    public async Task DeleteDocumentAsync(Guid documentId, bool saveChanges = true)
+    public async Task DeleteDocumentAsync(Guid documentId)
     {
-        var document = await dbContext.Documents.Include(d => d.Chunks).FirstOrDefaultAsync(d => d.Id == documentId);
-        if (document is null)
-        {
-            return;
-        }
+        await dbContext.Database.BeginTransactionAsync();
 
-        dbContext.DocumentChunks.RemoveRange(document.Chunks);
-        dbContext.Documents.Remove(document);
+        await dbContext.DocumentChunks.Where(c => c.DocumentId == documentId).ExecuteDeleteAsync();
+        await dbContext.Documents.Where(d => d.Id == documentId).ExecuteDeleteAsync();
 
-        if (saveChanges)
-        {
-            await dbContext.SaveChangesAsync();
-        }
+        await dbContext.Database.CommitTransactionAsync();
     }
 
     public async Task<VectorSearchResponse> AskQuestionAsync(Question question, bool reformulate = true)
