@@ -21,7 +21,7 @@ public class ChatService(IChatCompletionService chatCompletionService)
 
             """);
 
-        // TODO: Ensure that the chunks are not too long, according to the model max token.
+        // TODO: Ensure that chunks are not too long, according to the model max token.
         foreach (var result in chunks)
         {
             prompt.AppendLine(result);
