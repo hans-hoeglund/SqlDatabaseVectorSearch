@@ -142,7 +142,6 @@ app.MapPost("/api/ask", async (Question question, VectorSearchService vectorSear
 .WithOpenApi(operation =>
 {
     operation.Summary = "Asks a question";
-
     return operation;
 })
 .WithTags("Ask");
