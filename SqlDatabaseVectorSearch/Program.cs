@@ -22,7 +22,7 @@ builder.Services.AddSqlServer<ApplicationDbContext>(builder.Configuration.GetCon
     options.UseVectorSearch();
 });
 
-// Semantical Kernel is used to generate embeddings and ask the actual question
+// Semantic Kernel is used to generate embeddings and ask the actual question.
 builder.Services.AddKernel()
     .AddAzureOpenAITextEmbeddingGeneration(aiSettings.Embedding.Deployment, aiSettings.Embedding.Endpoint, aiSettings.Embedding.ApiKey)
     .AddAzureOpenAIChatCompletion(aiSettings.ChatCompletion.Deployment, aiSettings.ChatCompletion.Endpoint, aiSettings.ChatCompletion.ApiKey);
