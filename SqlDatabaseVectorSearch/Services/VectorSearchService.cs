@@ -81,7 +81,7 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
 
     public async Task<Response> AskQuestionAsync(Question question)
     {
-        // Perform Vector Search on SQL Server.
+        // Perform Vector Search on SQL Database.
         var questionEmbedding = await textEmbeddingGenerationService.GenerateEmbeddingAsync(question.Text);
 
         var chunks = await dbContext.DocumentChunks
