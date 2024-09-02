@@ -12,13 +12,13 @@ using Entities = SqlDatabaseVectorSearch.DataAccessLayer.Entities;
 
 namespace SqlDatabaseVectorSearch.Services;
 
-public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingGenerationService textEmbeddingGenerationService, ChatService chatService, IOptions<AppSettings> appSettingsOptions)
+public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingGenerationService textEmbeddingGenerationService, ChatService chatService, TimeProvider timeProvider, IOptions<AppSettings> appSettingsOptions)
 {
     private readonly AppSettings appSettings = appSettingsOptions.Value;
 
     public async Task<Guid> ImportAsync(Stream stream, string name, Guid? documentId)
     {
-        // Extract the contents of the file (current, only PDF are supported).
+        // Extract the contents of the file (current, only PDF files are supported).
         var content = await GetContentAsync(stream);
 
         await dbContext.Database.BeginTransactionAsync();
@@ -26,32 +26,27 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
         if (documentId.HasValue)
         {
             // If the user is importing a document that already exists, delete the previous one.
-            await dbContext.DocumentChunks.Where(c => c.DocumentId == documentId).ExecuteDeleteAsync();
-            await dbContext.Documents.Where(d => d.Id == documentId).ExecuteDeleteAsync();
-        }
-        else
-        {
-            // Create a new document.
-            documentId = Guid.NewGuid();
+            await DeleteDocumentAsync(documentId.Value);
         }
 
-        var document = new Entities.Document { Id = documentId.Value, Name = name, CreationDate = DateTimeOffset.UtcNow };
+        var document = new Entities.Document { Id = documentId.GetValueOrDefault(), Name = name, CreationDate = timeProvider.GetUtcNow() };
         dbContext.Documents.Add(document);
 
         // Split the content into chunks and generate the embeddings for each one.
         var paragraphs = TextChunker.SplitPlainTextParagraphs(TextChunker.SplitPlainTextLines(content, appSettings.MaxTokensPerLine), appSettings.MaxTokensPerParagraph, appSettings.OverlapTokens);
         var embeddings = await textEmbeddingGenerationService.GenerateEmbeddingsAsync(paragraphs);
 
+        var index = 0;
         foreach (var (paragraph, embedding) in paragraphs.Zip(embeddings, (p, e) => (p, e.ToArray())))
         {
-            var documentChunk = new Entities.DocumentChunk { DocumentId = documentId.Value, Content = paragraph, Embedding = embedding };
+            var documentChunk = new Entities.DocumentChunk { Document = document, Index = index++, Content = paragraph, Embedding = embedding };
             dbContext.DocumentChunks.Add(documentChunk);
         }
 
         await dbContext.SaveChangesAsync();
         await dbContext.Database.CommitTransactionAsync();
 
-        return documentId.Value;
+        return document.Id;
     }
 
     public async Task<IEnumerable<Document>> GetDocumentsAsync()
@@ -81,22 +76,15 @@ public class VectorSearchService(ApplicationDbContext dbContext, ITextEmbeddingG
         return documentChunk;
     }
 
-    public async Task DeleteDocumentAsync(Guid documentId)
-    {
-        await dbContext.Database.BeginTransactionAsync();
-
-        await dbContext.DocumentChunks.Where(c => c.DocumentId == documentId).ExecuteDeleteAsync();
-        await dbContext.Documents.Where(d => d.Id == documentId).ExecuteDeleteAsync();
-
-        await dbContext.Database.CommitTransactionAsync();
-    }
+    public Task DeleteDocumentAsync(Guid documentId)
+        => dbContext.Documents.Where(d => d.Id == documentId).ExecuteDeleteAsync();
 
     public async Task<VectorSearchResponse> AskQuestionAsync(Question question, bool reformulate = true)
     {
         // Reformulate the following question taking into account the context of the chat to perform keyword search and embeddings:
         var reformulatedQuestion = reformulate ? await chatService.CreateQuestionAsync(question.ConversationId, question.Text) : question.Text;
 
-        // Perform Vector Search on SQL Server.
+        // Perform Vector Search on SQL Database.
         var questionEmbedding = await textEmbeddingGenerationService.GenerateEmbeddingAsync(reformulatedQuestion);
 
         var chunks = await dbContext.DocumentChunks
