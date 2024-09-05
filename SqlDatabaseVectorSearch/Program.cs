@@ -61,7 +61,6 @@ if (app.Environment.IsDevelopment())
     {
         options.RoutePrefix = string.Empty;
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "SQL Database Vector Search API v1");
-        options.InjectStylesheet("/css/swagger.css");
     });
 }
 
