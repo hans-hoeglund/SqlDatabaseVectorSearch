@@ -1,10 +1,10 @@
 ﻿using System.Text;
 using System.Text.Json;
-using Azure.AI.OpenAI;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using OpenAI.Chat;
 using SqlDatabaseVectorSearch.Models;
 using SqlDatabaseVectorSearch.Settings;
 
@@ -78,7 +78,7 @@ public class ChatService(IMemoryCache cache, IChatCompletionService chatCompleti
 
         chat.AddUserMessage(prompt.ToString());
 
-        var responseJson = await chatCompletionService.GetChatMessageContentAsync(chat, new OpenAIPromptExecutionSettings { ResponseFormat = ChatCompletionsResponseFormat.JsonObject })!;
+        var responseJson = await chatCompletionService.GetChatMessageContentAsync(chat, new OpenAIPromptExecutionSettings { ResponseFormat = ChatResponseFormat.JsonObject })!;
         var response = JsonSerializer.Deserialize<ChatResponse>(responseJson.Content!, jsonSerializerOptions)!;
 
         // Add question and answer to the chat history.
